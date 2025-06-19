@@ -13,12 +13,12 @@ class MonodepthOptions:
         self.parser.add_argument("--data_path",
                                 type=str,
                                 help="path to the NuScenes dataset",
-                                default='/media/ilias/4b3f6643-e758-40b9-9b58-9e98f88e5c79/dimitris/monodepth2/nuscenes_data')
+                                default=os.path.join(file_dir, 'nuscenes_data'))
 
         self.parser.add_argument("--log_dir",
                                 type=str,
                                 help="log directory",
-                                default='/media/ilias/4b3f6643-e758-40b9-9b58-9e98f88e5c79/dimitris/monodepth2/tmp')
+                                default=os.path.join(file_dir, 'tmp'))
 
         # TRAINING options
         self.parser.add_argument("--model_name",
