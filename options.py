@@ -11,20 +11,19 @@ import argparse
 
 file_dir = os.path.dirname(__file__)  # the directory that options.py resides in
 
-
 class MonodepthOptions:
     def __init__(self):
         self.parser = argparse.ArgumentParser(description="Monodepthv2 options")
 
         # PATHS
         self.parser.add_argument("--data_path",
-                                 type=str,
+                                type=str,
                                  help="path to the training data",
                                  default=os.path.join(file_dir, "kitti_data"))
         self.parser.add_argument("--log_dir",
-                                 type=str,
-                                 help="log directory",
-                                 default=os.path.join(os.path.expanduser("/media/ilias/4b3f6643-e758-40b9-9b58-9e98f88e5c79/dimitris/monodepth2"), "tmp"))
+                                type=str,
+                                help="log directory",
+                                default=os.path.join(file_dir, 'tmp'))
 
         # TRAINING options
         self.parser.add_argument("--model_name",
