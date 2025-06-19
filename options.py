@@ -24,7 +24,7 @@ class MonodepthOptions:
         self.parser.add_argument("--log_dir",
                                  type=str,
                                  help="log directory",
-                                 default=os.path.join(os.path.expanduser("~"), "tmp"))
+                                 default=os.path.join(os.path.expanduser("/media/ilias/4b3f6643-e758-40b9-9b58-9e98f88e5c79/dimitris/monodepth2"), "tmp"))
 
         # TRAINING options
         self.parser.add_argument("--model_name",
@@ -87,7 +87,7 @@ class MonodepthOptions:
         self.parser.add_argument("--batch_size",
                                  type=int,
                                  help="batch size",
-                                 default=12)
+                                 default=4)
         self.parser.add_argument("--learning_rate",
                                  type=float,
                                  help="learning rate",
@@ -140,7 +140,7 @@ class MonodepthOptions:
         self.parser.add_argument("--num_workers",
                                  type=int,
                                  help="number of dataloader workers",
-                                 default=12)
+                                 default=4)
 
         # LOADING options
         self.parser.add_argument("--load_weights_folder",
@@ -196,6 +196,7 @@ class MonodepthOptions:
                                       "we want to evaluate using the new benchmark.",
                                  action="store_true")
         self.parser.add_argument("--eval_out_dir",
+                                 default='/media/ilias/4b3f6643-e758-40b9-9b58-9e98f88e5c79/dimitris/monodepth2/tmp/mono_model/depth_maps',
                                  help="if set will output the disparities to this folder",
                                  type=str)
         self.parser.add_argument("--post_process",
