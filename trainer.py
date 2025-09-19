@@ -334,6 +334,11 @@ class Trainer:
                 self.compute_depth_losses(inputs, outputs, losses)
 
             self.log("val", inputs, outputs, losses)
+
+            print(f"[VAL] Step {self.step} | Losses: " +
+                  ", ".join([f"{k}: {v:.5f}" if isinstance(v, float) or isinstance(v, int)
+                             else f"{k}: {v.item():.5f}" for k, v in losses.items()]))
+
             del inputs, outputs, losses
 
         self.set_train()
@@ -628,3 +633,9 @@ class Trainer:
             self.model_optimizer.load_state_dict(optimizer_dict)
         else:
             print("Cannot find Adam weights so Adam is randomly initialized")
+
+
+
+
+# conda activate monodepth2
+# CUDA_VISIBLE_DEVICES=1 python train.py --model_name mono_model_new --batch_size 32

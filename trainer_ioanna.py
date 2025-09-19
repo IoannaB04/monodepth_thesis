@@ -1,13 +1,12 @@
 from __future__ import absolute_import, division, print_function
 
-import time, json
+import time, json, sys
 
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
 
 from utils import *
-from kitti_utils import *
 from layers import *
 from datasets.transforms import *
 
@@ -19,10 +18,31 @@ from datasets.nuscenes_dataset import NuScenesDataset
 
 torch.cuda.empty_cache()
 
+import matplotlib.pyplot as plt
+
 class Trainer:
     def __init__(self, options):
         self.opt = options
         self.log_path = os.path.join(self.opt.log_dir, self.opt.model_name)
+
+        # Setup logging to both console and file
+        log_file_path = os.path.join(self.log_path, "training_log.txt")
+        if not os.path.exists(self.log_path):
+            os.makedirs(self.log_path)
+        self.log_file = open(log_file_path, "a")
+
+        class Logger(object):
+            def __init__(self, *files):
+                self.files = files
+            def write(self, message):
+                for f in self.files:
+                    f.write(message)
+                    f.flush()
+            def flush(self):
+                for f in self.files:
+                    f.flush()
+        sys.stdout = Logger(sys.__stdout__, self.log_file)
+        sys.stderr = Logger(sys.__stderr__, self.log_file)
 
         self.models = {}
         self.parameters_to_train = []
@@ -83,7 +103,6 @@ class Trainer:
 
         # data
         version = "v1.0-" + self.opt.dataset_version
-
         assert version in ['v1.0-trainval', 'v1.0-mini']
 
         nusc = NuScenes(version=version, dataroot=self.opt.data_path, verbose=True)
@@ -207,8 +226,7 @@ class Trainer:
             if early_phase or late_phase:
                 self.log_time(batch_idx, duration, losses["loss"].cpu().data)
 
-                if "depth_gt" in inputs:
-                    self.compute_depth_losses(inputs, outputs, losses)
+                self.compute_depth_losses(inputs, outputs, losses)
 
                 self.log("train", inputs, outputs, losses)
                 self.val()
@@ -311,8 +329,7 @@ class Trainer:
         return outputs
 
     def val(self):
-        """Validate the model on a single minibatch
-        """
+        """Validate the model on a single minibatch"""
         self.set_eval()
         try:
             inputs = self.val_iter.next()
@@ -323,18 +340,21 @@ class Trainer:
         with torch.no_grad():
             outputs, losses = self.process_batch(inputs)
 
-            if "depth_gt" in inputs:
-                self.compute_depth_losses(inputs, outputs, losses)
+            self.compute_depth_losses(inputs, outputs, losses)
 
             self.log("val", inputs, outputs, losses)
+
+            print(f"[VAL] Step {self.step} | Losses: " +
+                  ", ".join([f"{k}: {v:.5f}" if isinstance(v, float) or isinstance(v, int)
+                             else f"{k}: {v.item():.5f}" for k, v in losses.items()]))
+
             del inputs, outputs, losses
 
         self.set_train()
 
     def generate_images_pred(self, inputs, outputs):
         """Generate the warped (reprojected) color images for a minibatch.
-        Generated images are saved into the `outputs` dictionary.
-        """
+           Generated images are saved into the `outputs` dictionary."""
         for scale in self.opt.scales:
             disp = outputs[("disp", scale)]
             if self.opt.v1_multiscale:
@@ -346,6 +366,12 @@ class Trainer:
 
             _, depth = disp_to_depth(disp, self.opt.min_depth, self.opt.max_depth)
 
+            # plt.imshow(depth[0].squeeze().cpu().detach().numpy(), cmap='viridis')
+            # plt.colorbar()
+            # plt.title("Disparity Map")
+            # plt.axis('off')
+            # plt.show()
+            # plt.close
             outputs[("depth", 0, scale)] = depth
 
             for i, frame_id in enumerate(self.opt.frame_ids[1:]):
@@ -396,8 +422,7 @@ class Trainer:
                         inputs[("color", frame_id, source_scale)]
 
     def compute_reprojection_loss(self, pred, target):
-        """Computes reprojection loss between a batch of predicted and target images
-        """
+        """Computes reprojection loss between a batch of predicted and target images"""
         abs_diff = torch.abs(target - pred)
         l1_loss = abs_diff.mean(1, True)
 
@@ -507,17 +532,21 @@ class Trainer:
         This isn't particularly accurate as it averages over the entire batch,
         so is only used to give an indication of validation performance
         """
+        initial_width = 900
+        initial_hight = 1600
+
         depth_pred = outputs[("depth", 0, 0)]
-        depth_pred = torch.clamp(F.interpolate(
-            depth_pred, [375, 1242], mode="bilinear", align_corners=False), 1e-3, 80)
+        depth_pred = torch.clamp(F.interpolate(depth_pred, [initial_width, initial_hight], mode="bilinear", align_corners=False), 1e-3, 80)
         depth_pred = depth_pred.detach()
 
-        depth_gt = inputs["depth_gt"]
+        depth_gt = inputs[("depth_gt",0,0)].unsqueeze(1)
+        depth_gt = F.interpolate(depth_gt, size=[initial_width, initial_hight], mode="nearest")
         mask = depth_gt > 0
 
         # garg/eigen crop
         crop_mask = torch.zeros_like(mask)
-        crop_mask[:, :, 153:371, 44:1197] = 1
+        # crop_mask[:, :, 153:371, 44:1197] = 1 # for kitti dataset
+        crop_mask[:, :, 522:891, 56:1536] = 1 # for nuscenes dataset
         mask = mask * crop_mask
 
         depth_gt = depth_gt[mask]
@@ -544,8 +573,7 @@ class Trainer:
                                   sec_to_hm_str(time_sofar), sec_to_hm_str(training_time_left)))
 
     def log(self, mode, inputs, outputs, losses):
-        """Write an event to the tensorboard events file
-        """
+        """Write an event to the tensorboard events file"""
         writer = self.writers[mode]
         for l, v in losses.items():
             writer.add_scalar("{}".format(l), v, self.step)
@@ -578,8 +606,7 @@ class Trainer:
                         outputs["identity_selection/{}".format(s)][j][None, ...], self.step)
 
     def save_opts(self):
-        """Save options to disk so we know what we ran this experiment with
-        """
+        """Save options to disk so we know what we ran this experiment with"""
         models_dir = os.path.join(self.log_path, "models")
         if not os.path.exists(models_dir):
             os.makedirs(models_dir)
@@ -589,8 +616,7 @@ class Trainer:
             json.dump(to_save, f, indent=2)
 
     def save_model(self):
-        """Save model weights to disk
-        """
+        """Save model weights to disk"""
         save_folder = os.path.join(self.log_path, "models", "weights_{}".format(self.epoch))
         if not os.path.exists(save_folder):
             os.makedirs(save_folder)
@@ -602,11 +628,14 @@ class Trainer:
                 # save the sizes - these are needed at prediction time
                 to_save['height'] = self.opt.height
                 to_save['width'] = self.opt.width
-                to_save['use_stereo'] = self.opt.use_stereo
             torch.save(to_save, save_path)
 
         save_path = os.path.join(save_folder, "{}.pth".format("adam"))
         torch.save(self.model_optimizer.state_dict(), save_path)
+
+        if self.epoch == self.opt.num_epochs-1:
+            if hasattr(self, "log_file"):
+                self.log_file.close()
 
     def load_model(self):
         """Load model(s) from disk
@@ -634,3 +663,7 @@ class Trainer:
             self.model_optimizer.load_state_dict(optimizer_dict)
         else:
             print("Cannot find Adam weights so Adam is randomly initialized")
+
+
+# conda activate monodepth2_nuscenes
+# CUDA_VISIBLE_DEVICES=0 python train_ioanna.py --model_name nuscenes_monodepth_new --batch_size 4

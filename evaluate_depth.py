@@ -80,6 +80,7 @@ def evaluate(opt):
 
         encoder_dict = torch.load(encoder_path)
 
+        print("-> Initializing Dataset")
         dataset = datasets.KITTIRAWDataset(opt.data_path, filenames,
                                            encoder_dict['height'], encoder_dict['width'],
                                            [0], 4, is_train=False)
@@ -163,7 +164,7 @@ def evaluate(opt):
         quit()
 
     gt_path = os.path.join(splits_dir, opt.eval_split, "gt_depths.npz")
-    gt_depths = np.load(gt_path, fix_imports=True, encoding='latin1')["data"]
+    gt_depths = np.load(gt_path, fix_imports=True, encoding='latin1', allow_pickle=True)["data"]
 
     print("-> Evaluating")
 
@@ -225,6 +226,12 @@ def evaluate(opt):
     print("\n-> Done!")
 
 
+import sys
 if __name__ == "__main__":
+    sys.argv = [
+        "evaluate_depth_ioanna.py",
+        "--load_weights_folder", "/media/ilias/4b3f6643-e758-40b9-9b58-9e98f88e5c79/dimitris/monodepth_thesis_nuscenes/tmp/mono_model/models/weights_19/",
+        "--eval_mono"
+    ]
     options = MonodepthOptions()
     evaluate(options.parse())

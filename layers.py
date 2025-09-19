@@ -60,6 +60,38 @@ def get_translation_matrix(translation_vector):
 
     return T
 
+def euler2mat(angle):
+    """Convert euler angles to rotation matrix"""
+    B = angle.size(0)
+    x, y, z = angle[:, 0], angle[:, 1], angle[:, 2]
+
+    cosz = torch.cos(z)
+    sinz = torch.sin(z)
+
+    zeros = z.detach() * 0
+    ones = zeros.detach() + 1
+    zmat = torch.stack([cosz, -sinz, zeros,
+                        sinz, cosz, zeros,
+                        zeros, zeros, ones], dim=1).view(B, 3, 3)
+
+    cosy = torch.cos(y)
+    siny = torch.sin(y)
+
+    ymat = torch.stack([cosy, zeros, siny,
+                        zeros, ones, zeros,
+                        -siny, zeros, cosy], dim=1).view(B, 3, 3)
+
+    cosx = torch.cos(x)
+    sinx = torch.sin(x)
+
+    xmat = torch.stack([ones, zeros, zeros,
+                        zeros, cosx, -sinx,
+                        zeros, sinx, cosx], dim=1).view(B, 3, 3)
+
+    rot_mat = xmat.bmm(ymat).bmm(zmat)
+    pose = torch.eye(4, device=rot_mat.device, dtype=rot_mat.dtype).repeat([len(rot_mat), 1, 1])
+    pose[:, :3, :3] = rot_mat[:, :3, :3]
+    return pose
 
 def rot_from_axisangle(vec):
     """Convert an axisangle rotation into a 4x4 transformation matrix

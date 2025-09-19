@@ -24,7 +24,7 @@ class MonodepthOptions:
         self.parser.add_argument("--model_name",
                                 type=str,
                                 help="the name of the folder to save the model in",
-                                default="nuscenes")
+                                default="nuscenes_monodepth_right_metrics")
 
         self.parser.add_argument("--dataset_version",
                                 type=str,
@@ -51,7 +51,7 @@ class MonodepthOptions:
 
         self.parser.add_argument("--disparity_smoothness",
                                 type=float,
-                                help="disparity smoothness weight",
+                                help="λ weight for smoothness loss",
                                 default=1e-3)
 
         self.parser.add_argument("--scales",
@@ -68,7 +68,7 @@ class MonodepthOptions:
         self.parser.add_argument("--max_depth",
                                 type=float,
                                 help="maximum depth",
-                                default=80.0)
+                                default=100.0)
 
         self.parser.add_argument("--frame_ids",
                                 nargs="+",
@@ -87,7 +87,7 @@ class MonodepthOptions:
         self.parser.add_argument("--batch_size",
                                 type=int,
                                 help="batch size",
-                                default=8)  # Reduced for NuScenes higher resolution
+                                default=8)
         self.parser.add_argument("--learning_rate",
                                 type=float,
                                 help="learning rate",
@@ -95,7 +95,7 @@ class MonodepthOptions:
         self.parser.add_argument("--num_epochs",
                                 type=int,
                                 help="number of epochs",
-                                default=20)
+                                default=50)
         self.parser.add_argument("--scheduler_step_size",
                                 type=int,
                                 help="step size of the scheduler",
@@ -140,7 +140,7 @@ class MonodepthOptions:
         self.parser.add_argument("--num_workers",
                                 type=int,
                                 help="number of dataloader workers",
-                                default=8)  # Reduced for memory constraints
+                                default=4)  # Reduced for memory constraints
 
         # LOADING options
         self.parser.add_argument("--load_weights_folder",
@@ -178,7 +178,7 @@ class MonodepthOptions:
                                 default=1)
         self.parser.add_argument("--ext_disp_to_eval",
                                 type=str,
-                                default='/media/ilias/4b3f6643-e758-40b9-9b58-9e98f88e5c79/dimitris/monodepth2/tmp/nuscenes_monodepth/something',
+                                # default=os.path.join(file_dir, 'tmp', 'nuscenes', 'something'),
                                 help="optional path to a .npy disparities file to evaluate")
         self.parser.add_argument("--eval_split",
                                 type=str,
@@ -201,8 +201,8 @@ class MonodepthOptions:
 
         self.parser.add_argument("--gpu",
                                  type=int,
-                                 default=1,
-                                 help="GPU id to use (default: 1)")
+                                 default=0,
+                                 help="GPU id to use (default: 0)")
 
     def parse(self):
         self.options = self.parser.parse_args()
